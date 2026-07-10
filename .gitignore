@@ -1,0 +1,25 @@
+# IDE and OS files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+out/
+
+# Backend (Spring Boot / Maven)
+backend/target/
+backend/.env
+backend/uploads/
+backend/reports/
+backend/*.log
+
+# Frontend (React / Vite / Node)
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/*.log
+
+# Build artifacts
+*.class
+*.jar
+*.war
