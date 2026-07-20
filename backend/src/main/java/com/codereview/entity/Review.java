@@ -47,6 +47,9 @@ public class Review {
     @Column(columnDefinition = "TEXT")
     private String errorMessage; // populated if status == FAILED
 
+    @OneToMany(mappedBy = "review", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<ReviewFinding> findings;
+
     @Builder.Default
     private Instant createdAt = Instant.now();
 }

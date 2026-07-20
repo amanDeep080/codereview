@@ -12,11 +12,9 @@ function RequireAuth({ children }) {
 }
 
 export default function App() {
-  const token = localStorage.getItem('token')
-
   return (
     <div className="min-h-screen bg-slate-50">
-      {token && <Navbar />}
+      <Navbar />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />

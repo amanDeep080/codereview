@@ -8,6 +8,7 @@ import java.util.List;
 public record ReviewResponse(
         Long id,
         Long projectId,
+        String projectName,
         Review.Status status,
         Integer reviewScore,
         String summary,

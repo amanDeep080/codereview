@@ -54,7 +54,8 @@ public class ReviewService {
 
     private ReviewResponse toResponse(Review r, List<ReviewFindingDto> findings) {
         return new ReviewResponse(
-                r.getId(), r.getProject().getId(), r.getStatus(), r.getReviewScore(), r.getSummary(),
+                r.getId(), r.getProject().getId(), r.getProject().getProjectName(),
+                r.getStatus(), r.getReviewScore(), r.getSummary(),
                 r.getNumClasses(), r.getNumMethods(), r.getLinesOfCode(),
                 r.getAverageMethodLength(), r.getCyclomaticComplexity(), r.getMaintainabilityIndex(),
                 r.getCreatedAt(), findings
