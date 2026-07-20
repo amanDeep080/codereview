@@ -39,7 +39,7 @@ public class StaticAnalysisService {
             // Loads Sun-style checks bundled with checkstyle-core; swap for a custom
             // checkstyle.xml on the classpath to match your institute's coding standard.
             var config = ConfigurationLoader.loadConfiguration(
-                    "sun_checks.xml",
+                    "checkstyle.xml",
                     new PropertiesExpander(new Properties())
             );
             checker.setModuleClassLoader(Thread.currentThread().getContextClassLoader());
