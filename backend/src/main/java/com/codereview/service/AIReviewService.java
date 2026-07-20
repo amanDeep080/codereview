@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -19,9 +20,8 @@ import java.util.Map;
  * used by the static-analysis tools.
  *
  * Swappable provider: app.ai.provider / app.ai.base-url / app.ai.model in
- * application.properties. Defaults assume an OpenAI-compatible chat completions
- * endpoint; adjust the request/response shape below if you switch providers
- * (e.g. Anthropic's /v1/messages has a different schema).
+ * application.properties. Gemini uses its native generateContent endpoint;
+ * other providers can continue using OpenAI-compatible chat completions.
  */
 @Service
 public class AIReviewService {
@@ -34,6 +34,9 @@ public class AIReviewService {
 
     @Value("${app.ai.model}")
     private String model;
+
+    @Value("${app.ai.provider:gemini}")
+    private String provider;
 
     public AIReviewService(@Value("${app.ai.base-url}") String baseUrl) {
         this.webClient = WebClient.builder().baseUrl(baseUrl).build();
@@ -57,24 +60,16 @@ public class AIReviewService {
             String userPrompt = "Static analysis summary:\n" + staticAnalysisSummary +
                     "\n\nSource code to review:\n" + combinedSource;
 
-            Map<String, Object> requestBody = Map.of(
-                    "model", model,
-                    "messages", List.of(
-                            Map.of("role", "system", "content", SYSTEM_PROMPT),
-                            Map.of("role", "user", "content", userPrompt)
-                    ),
-                    "temperature", 0.2
-            );
-
-            String response = webClient.post()
-                    .uri("/chat/completions")
-                    .header("Authorization", "Bearer " + apiKey)
-                    .bodyValue(requestBody)
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
+            String response = invokeModel(userPrompt);
 
             findings.addAll(parseAiResponse(response));
+        } catch (WebClientResponseException.TooManyRequests e) {
+            findings.add(ReviewFinding.builder()
+                .severity(ReviewFinding.Severity.INFO)
+                .source(ReviewFinding.Source.AI)
+                .issue("AI review rate limited")
+                .explanation("Gemini returned a 429 Too Many Requests response. Try again shortly, or reduce the review frequency/size if you are hitting quota limits.")
+                .build());
         } catch (Exception e) {
             findings.add(ReviewFinding.builder()
                     .severity(ReviewFinding.Severity.INFO)
@@ -86,9 +81,65 @@ public class AIReviewService {
         return findings;
     }
 
+        private String invokeModel(String userPrompt) {
+        if ("gemini".equalsIgnoreCase(provider)) {
+            return invokeGeminiNative(userPrompt);
+        }
+        return invokeOpenAiCompatible(userPrompt);
+        }
+
+        private String invokeOpenAiCompatible(String userPrompt) {
+        Map<String, Object> requestBody = Map.of(
+            "model", model,
+            "messages", List.of(
+                Map.of("role", "system", "content", SYSTEM_PROMPT),
+                Map.of("role", "user", "content", userPrompt)
+            ),
+            "temperature", 0.2
+        );
+
+        return webClient.post()
+            .uri("/chat/completions")
+            .header("Authorization", "Bearer " + apiKey)
+            .bodyValue(requestBody)
+            .retrieve()
+            .bodyToMono(String.class)
+            .block();
+        }
+
+        private String invokeGeminiNative(String userPrompt) {
+        Map<String, Object> requestBody = Map.of(
+            "systemInstruction", Map.of(
+                "parts", List.of(Map.of("text", SYSTEM_PROMPT))
+            ),
+            "contents", List.of(
+                Map.of(
+                    "role", "user",
+                    "parts", List.of(Map.of("text", userPrompt))
+                )
+            ),
+            "generationConfig", Map.of(
+                "temperature", 0.2,
+                "responseMimeType", "application/json"
+            )
+        );
+
+        return webClient.post()
+            .uri(uriBuilder -> uriBuilder
+                .path("/models/{model}:generateContent")
+                .queryParam("key", apiKey)
+                .build(model))
+            .bodyValue(requestBody)
+            .retrieve()
+            .bodyToMono(String.class)
+            .block();
+        }
+
     private List<ReviewFinding> parseAiResponse(String rawResponse) throws Exception {
         JsonNode root = mapper.readTree(rawResponse);
-        String content = root.at("/choices/0/message/content").asText();
+        String content = "gemini".equalsIgnoreCase(provider)
+            ? root.at("/candidates/0/content/parts/0/text").asText()
+            : root.at("/choices/0/message/content").asText();
 
         // Defensive: strip markdown fences if the model added them despite instructions
         content = content.replaceAll("```json", "").replaceAll("```", "").trim();
