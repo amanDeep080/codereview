@@ -1,3 +1,50 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer components {
+  .animate-in {
+    animation-duration: 500ms;
+    animation-fill-mode: both;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .fade-in {
+    --tw-enter-opacity: 0;
+    animation-name: enter-opacity;
+  }
+
+  .slide-in-from-bottom-4 {
+    --tw-enter-translate-y: 1rem;
+    animation-name: enter-translate;
+  }
+
+  .slide-in-from-bottom-2 {
+    --tw-enter-translate-y: 0.5rem;
+    animation-name: enter-translate;
+  }
+
+  @keyframes enter-opacity {
+    from { opacity: var(--tw-enter-opacity); }
+    to { opacity: 1; }
+  }
+
+  @keyframes enter-translate {
+    from {
+      transform: translateY(var(--tw-enter-translate-y, 0)) translateX(var(--tw-enter-translate-x, 0));
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0) translateX(0);
+      opacity: 1;
+    }
+  }
+
+  .fill-mode-both {
+    animation-fill-mode: both;
+  }
+}
+
+body {
+  @apply bg-slate-50/50 text-slate-900 antialiased;
+}
